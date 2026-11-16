@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>You're Back — Whisper Your Wish to the Stars</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Jost:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(120% 80% at 50% 115%, #1b2a66 0%, transparent 55%),
+                radial-gradient(90% 60% at 50% 0%, #0b1440 0%, transparent 70%),
+                linear-gradient(#030616 0%, #071038 45%, #0d1a4f 80%, #14225c 100%);
+    color: #e9ecff;
+    font-family: 'Jost', -apple-system, sans-serif;
+    min-height: 100svh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    user-select: none;
+  }
+  textarea { user-select: text; }
+  @media (prefers-reduced-motion: reduce) { .flying-wish { animation-duration: 0.01s; } }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+  .hills { position: fixed; left: 0; right: 0; bottom: 0; width: 100%; height: 22vh; z-index: 2; pointer-events: none; }
+  .top-bar {
+    position: fixed; top: 16px; left: 16px; right: 16px; z-index: 30;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 9px 15px; border-radius: 9999px;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.16);
+    color: rgba(235,240,255,0.9); font-size: 0.75rem; letter-spacing: 0.05em;
+    text-decoration: none; backdrop-filter: blur(8px); cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .pill:hover { color: #ffe6b3; border-color: rgba(255,230,190,0.5); background: rgba(255,255,255,0.14); }
+  main {
+    position: relative; z-index: 10; flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    padding: 80px 22px 100px; text-align: center;
+  }
+  .box { width: 100%; max-width: 520px; transition: opacity 0.9s ease, transform 0.9s ease; }
+  .hidden { display: none !important; }
+  .eyebrow {
+    font-size: 0.75rem; letter-spacing: 0.45em; text-transform: uppercase;
+    color: rgba(214,222,255,0.65); margin-bottom: 16px;
+  }
+  .title {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: clamp(2.8rem, 11vw, 5rem); font-weight: 300; font-style: italic;
+    color: #f6f3ff; text-shadow: 0 0 24px rgba(190,205,255,0.45);
+    line-height: 1.08; margin-bottom: 40px;
+  }
+  .poem {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: clamp(1.3rem, 4.8vw, 1.75rem); font-weight: 300;
+    line-height: 1.6; color: rgba(233,236,255,0.92);
+    text-shadow: 0 0 18px rgba(150,170,255,0.25); margin-bottom: 12px;
+  }
+  .poem-lead { font-size: clamp(1.85rem, 7vw, 2.5rem); font-style: italic; color: #fbf8ff; margin-bottom: 14px; }
+  .glow-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 15px 34px; border-radius: 9999px;
+    background: linear-gradient(135deg, rgba(255,230,180,0.22), rgba(170,185,255,0.18));
+    border: 1px solid rgba(255,236,200,0.55); color: #fff9ec;
+    font-family: 'Jost', sans-serif; font-size: 0.88rem; letter-spacing: 0.16em;
+    text-transform: uppercase; cursor: pointer; backdrop-filter: blur(6px);
+    box-shadow: 0 0 24px rgba(255,225,170,0.38), 0 0 50px rgba(150,170,255,0.25);
+    transition: all 0.35s ease;
+  }
+  .glow-btn:hover { transform: translateY(-2px); box-shadow: 0 0 32px rgba(255,225,170,0.6); }
+  .hint { font-size: 0.75rem; letter-spacing: 0.08em; color: rgba(200,210,255,0.55); margin-top: 18px; }
+  textarea {
+    width: 100%; margin: 22px 0 18px; padding: 18px 20px; border-radius: 20px;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(200,212,255,0.24);
+    color: #f6f4ff; font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 1.25rem; line-height: 1.55; resize: none; outline: none;
+    backdrop-filter: blur(10px);
+  }
+  textarea::placeholder { color: rgba(200,210,255,0.42); font-style: italic; }
+  textarea:focus { border-color: rgba(255,230,190,0.6); box-shadow: 0 0 28px rgba(255,225,170,0.18); }
+
+  /* 心事飞向星空的唯美动画 */
+  .wish-stage {
+    position: relative;
+    height: 260px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .flying-wish {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 1.55rem;
+    font-style: italic;
+    color: #fff9e6;
+    text-shadow: 0 0 16px #ffe3a3, 0 0 32px #a5b4fc;
+    animation: ascendToStar 2.6s cubic-bezier(0.32, 0.04, 0.25, 1) forwards;
+  }
+  @keyframes ascendToStar {
+    0% {
+      opacity: 1;
+      transform: translateY(40px) scale(1);
+      filter: blur(0px);
+    }
+    35% {
+      opacity: 1;
+      transform: translateY(0px) scale(1.06);
+      text-shadow: 0 0 25px #fff, 0 0 50px #fde68a;
+    }
+    85% {
+      opacity: 0.9;
+      transform: translateY(-210px) scale(0.18);
+      filter: blur(2px);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-260px) scale(0.02);
+      filter: blur(6px);
+    }
+  }
+
+  footer {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    padding: 10px 14px max(12px, env(safe-area-inset-bottom));
+    display: flex; justify-content: center;
+  }
+  .ad-slot {
+    width: min(100%, 728px); height: 48px; border-radius: 14px;
+    background: rgba(5,8,24,0.45); border: 1px dashed rgba(200,212,255,0.16);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: rgba(200,210,255,0.3); backdrop-filter: blur(6px);
+  }
+</style>
+</head>
+<body>
+  <canvas id="sky"></canvas>
+
+  <svg class="hills" viewBox="0 0 1440 240" preserveAspectRatio="none" aria-hidden="true">
+    <defs>
+      <linearGradient id="h1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#101a3d"/><stop offset="1" stop-color="#070c22"/></linearGradient>
+      <linearGradient id="h2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#060a1c"/><stop offset="1" stop-color="#03050f"/></linearGradient>
+    </defs>
+    <path fill="url(#h1)" d="M0 150 C 180 105 320 120 470 135 S 760 92 930 118 S 1250 150 1440 112 L1440 240 L0 240 Z"/>
+    <path fill="url(#h2)" d="M0 196 C 210 160 380 178 560 186 S 900 150 1080 170 S 1320 196 1440 176 L1440 240 L0 240 Z"/>
+  </svg>
+
+  <div class="top-bar">
+    <a href="https://buymeacoffee.com/taffylim" target="_blank" rel="noopener noreferrer" class="pill">
+      <span>☕</span><span>Buy the Night Sky a Coffee</span>
+    </a>
+    <button id="soundBtn" class="pill hidden" onclick="toggleAudio()">🔊 Music &amp; Night: ON</button>
+  </div>
+
+  <main>
+    <!-- 1. 开场界面 -->
+    <div id="step1" class="box">
+      <p class="eyebrow">You're Back</p>
+      <h1 class="title">You Were Here...</h1>
+      <button class="glow-btn" onclick="openSky()">Return to the Stars</button>
+      <p class="hint">soft ambient music &amp; night crickets</p>
+    </div>
+
+    <!-- 2. 倾诉界面 -->
+    <div id="step2" class="box hidden">
+      <p class="poem poem-lead">Hi, how have you been?</p>
+      <p class="poem">It's been a while since you last came back to look at these stars...</p>
+      <p class="poem">Is there anything you'd like to share with me? Anything at all.</p>
+      <textarea id="wishBox" rows="4" maxlength="500" placeholder="Whisper your wish or worry here..."></textarea>
+      <br>
+      <button class="glow-btn" onclick="launchWish()">✦ Send to the Stars</button>
+      <p class="hint">Nothing is saved. Watch your words become the brightest star.</p>
+    </div>
+
+    <!-- 3. 飞上星空动画阶段 -->
+    <div id="step3" class="box hidden">
+      <div class="wish-stage">
+        <div id="flyingWords" class="flying-wish"></div>
+      </div>
+    </div>
+
+    <!-- 4. 变成最亮星星 + 宇宙回信 -->
+    <div id="step4" class="box hidden">
+      <p class="poem poem-lead">I will carry this into the universe for you once again.</p>
+      <p class="poem">May all your wishes come true, and may you have the sweetest dreams...</p>
+      <br>
+      <button class="glow-btn" style="margin-top: 16px;" onclick="anotherWish()">Share Another Thought</button>
+    </div>
+  </main>
+
+  <footer>
+    <div class="ad-slot">a quiet little space for a kind sponsor</div>
+  </footer>
+
+<script>
+const canvas = document.getElementById('sky');
+const ctx = canvas.getContext('2d');
+let W, H, bgStars = [], brightWishStars = [], sparkles = [], shootingStars = [];
+
+function resize() { W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
+addEventListener('resize', resize);
+resize();
+
+const bandStars = [];
+for (let i = 0; i < 340; i++) {
+  bandStars.push({ u: Math.random() * 2 - 1, v: (Math.random() + Math.random() + Math.random() - 1.5) * 0.16,
+    r: Math.random() * 1.2 + 0.5, a: Math.random() * 0.55 + 0.15, s: Math.random() * 1.5 + 0.4, p: Math.random() * 6.28 });
+}
+let textParticles = [], wishStart = 0, wishDone = null;
+
+for (let i = 0; i < 190; i++) {
+  bgStars.push({
+    x: Math.random(), y: Math.random() * 0.85,
+    r: Math.random() < 0.85 ? Math.random() * 1.1 + 0.3 : Math.random() * 1.7 + 0.9,
+    a: Math.random() * 0.75 + 0.2, speed: Math.random() * 1.5 + 0.5,
+    phase: Math.random() * Math.PI * 2
+  });
+}
+
+function createBrightestStar(targetX, targetY) {
+  brightWishStars.push({ x: targetX, y: targetY, born: performance.now(), phase: Math.random() * Math.PI * 2 });
+  for (let i = 0; i < 45; i++) {
+    const angle = Math.random() * Math.PI * 2, spd = Math.random() * 2.5 + 0.5;
+    sparkles.push({ x: targetX * W, y: targetY * H, vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd, life: 1, size: Math.random() * 2.2 + 0.8 });
+  }
+}
+
+function spawnShootingStar() {
+  shootingStars.push({ x: Math.random() * W * 0.8 + W * 0.1, y: Math.random() * H * 0.35, vx: 5 + Math.random() * 3, vy: 2 + Math.random() * 1.5, life: 1 });
+}
+
+function draw(now) {
+  ctx.clearRect(0, 0, W, H);
+  const t = now / 1000;
+
+  ctx.save();
+  ctx.translate(W * 0.55, H * 0.4); ctx.rotate(-0.6);
+  const mg = ctx.createLinearGradient(0, -H * 0.22, 0, H * 0.22);
+  mg.addColorStop(0, 'rgba(110,130,230,0)'); mg.addColorStop(0.5, 'rgba(150,165,240,0.14)'); mg.addColorStop(1, 'rgba(110,130,230,0)');
+  ctx.fillStyle = mg; ctx.fillRect(-W * 1.2, -H * 0.22, W * 2.4, H * 0.44);
+  ctx.fillStyle = '#dfe6ff';
+  for (const b of bandStars) {
+    ctx.globalAlpha = b.a * (0.6 + 0.4 * Math.sin(t * b.s + b.p));
+    ctx.fillRect(b.u * W * 1.1, b.v * H, b.r, b.r);
+  }
+  ctx.restore();
+
+  for (const s of bgStars) {
+    const tw = 0.55 + 0.45 * Math.sin(t * s.speed + s.phase);
+    ctx.globalAlpha = s.a * tw;
+    ctx.fillStyle = '#eaf0ff';
+    ctx.beginPath(); ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2); ctx.fill();
+  }
+
+  for (const b of brightWishStars) {
+    const age = Math.min((now - b.born) / 1800, 1);
+    const pulse = 0.8 + 0.2 * Math.sin(t * 2 + b.phase);
+    const x = b.x * W, y = b.y * H, r = (6 + 10 * age) * pulse;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r * 6);
+    g.addColorStop(0, 'rgba(255,244,210,0.95)');
+    g.addColorStop(0.25, 'rgba(255,225,170,0.4)');
+    g.addColorStop(1, 'rgba(160,180,255,0)');
+    ctx.globalAlpha = age;
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, r * 6, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,246,220,0.85)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x - r * 2.6, y); ctx.lineTo(x + r * 2.6, y);
+    ctx.moveTo(x, y - r * 2.6); ctx.lineTo(x, y + r * 2.6);
+    ctx.stroke();
+    ctx.fillStyle = '#fffaf0';
+    ctx.beginPath(); ctx.arc(x, y, r * 0.45, 0, Math.PI * 2); ctx.fill();
+  }
+
+  for (let i = sparkles.length - 1; i >= 0; i--) {
+    const p = sparkles[i];
+    p.x += p.vx; p.y += p.vy; p.vx *= 0.96; p.vy *= 0.96; p.life -= 0.012;
+    if (p.life <= 0) { sparkles.splice(i, 1); continue; }
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = '#ffe9b8';
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2); ctx.fill();
+  }
+
+  for (let i = shootingStars.length - 1; i >= 0; i--) {
+    const s = shootingStars[i];
+    s.x += s.vx; s.y += s.vy; s.life -= 0.016;
+    if (s.life <= 0) { shootingStars.splice(i, 1); continue; }
+    const g = ctx.createLinearGradient(s.x, s.y, s.x - s.vx * 14, s.y - s.vy * 14);
+    g.addColorStop(0, 'rgba(255,255,255,' + s.life + ')');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = g; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.vx * 14, s.y - s.vy * 14); ctx.stroke();
+  }
+
+  if (textParticles.length) {
+    const el = (now - wishStart) / 1000;
+    ctx.fillStyle = '#ffe9b8';
+    for (const q of textParticles) {
+      const p = Math.min(Math.max((el - 1.2 - q.delay) / 2.2, 0), 1), e = p * p * (3 - 2 * p);
+      const wob = Math.sin(p * Math.PI) * q.wob;
+      const x = q.x + (q.tx - q.x) * e + wob, y = q.y + (q.ty - q.y) * e - wob * 0.5;
+      const tw = 0.7 + 0.3 * Math.sin(t * 5 + q.ph);
+      ctx.globalAlpha = (1 - 0.35 * e) * tw;
+      ctx.beginPath(); ctx.arc(x, y, q.size * (1 - 0.5 * e), 0, Math.PI * 2); ctx.fill();
+    }
+    if (el > 4.3) { textParticles = []; if (wishDone) { wishDone(); wishDone = null; } }
+  }
+
+  ctx.globalAlpha = 1;
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+setInterval(() => { if (!document.hidden && Math.random() < 0.5) spawnShootingStar(); }, 6000);
+
+/* ---------- Sound: real recordings if present (music.mp3 / crickets.mp3), else soft synth ---------- */
+let actx = null, master = null, soundOn = true, audioStarted = false, padTimer = null, crickTimer = null;
+const MASTER_VOL = 0.7, files = [];
+const hz = m => 432 * Math.pow(2, (m - 69) / 12); // A4 = 432 Hz
+const CHORDS = [[57, 60, 64, 67], [53, 60, 64, 69], [48, 55, 60, 64], [55, 59, 62, 64]];
+
+function startAudio() {
+  if (audioStarted) return;
+  audioStarted = true;
+  try {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    master = actx.createGain();
+    master.gain.value = soundOn ? MASTER_VOL : 0;
+    master.connect(actx.destination);
+  } catch (e) { return; }
+  tryFile('music.mp3', 0.45, startPad);
+  tryFile('crickets.mp3', 0.35, startCrickets);
+}
+
+function tryFile(src, vol, fallback) {
+  const a = new Audio(src);
+  a.loop = true; a.volume = 0; a.muted = !soundOn;
+  let failed = false;
+  const fail = () => { if (!failed) { failed = true; fallback(); } };
+  a.addEventListener('error', fail, { once: true });
+  const pr = a.play();
+  if (pr && pr.catch) pr.catch(() => { if (a.error) fail(); });
+  files.push(a);
+  let v = 0;
+  const iv = setInterval(() => { v += 0.02; a.volume = Math.min(v, vol); if (v >= vol) clearInterval(iv); }, 150);
+}
+
+function startPad() {
+  if (padTimer || !actx) return;
+  const lp = actx.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 800; lp.connect(master);
+  let i = 0;
+  const chord = () => {
+    const t = actx.currentTime;
+    CHORDS[i++ % CHORDS.length].forEach(m => {
+      [['sine', 0, 0.03], ['triangle', 5, 0.012]].forEach(([type, det, v]) => {
+        const o = actx.createOscillator(), g = actx.createGain();
+        o.type = type; o.frequency.value = hz(m); o.detune.value = det;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.linearRampToValueAtTime(v, t + 4);
+        g.gain.linearRampToValueAtTime(v, t + 7);
+        g.gain.linearRampToValueAtTime(0.0001, t + 12);
+        o.connect(g); g.connect(lp); o.start(t); o.stop(t + 12.1);
+      });
+    });
+    padTimer = setTimeout(chord, 8000);
+  };
+  chord();
+}
+
+function startCrickets() {
+  if (crickTimer || !actx) return;
+  const lp = actx.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 5200; lp.connect(master);
+  const cricket = base => {
+    const t0 = actx.currentTime;
+    for (let k = 0; k < 3; k++) {
+      const t = t0 + k * 0.055, o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'sine'; o.frequency.value = base;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.0032, t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
+      o.connect(g); g.connect(lp); o.start(t); o.stop(t + 0.05);
+    }
+  };
+  const loop = () => {
+    if (Math.random() < 0.8) cricket(4300 + Math.random() * 300);
+    if (Math.random() < 0.5) setTimeout(() => cricket(3900 + Math.random() * 300), 200 + Math.random() * 300);
+    crickTimer = setTimeout(loop, 900 + Math.random() * 1400);
+  };
+  loop();
+}
+
+function toggleAudio() {
+  soundOn = !soundOn;
+  if (master) master.gain.value = soundOn ? MASTER_VOL : 0;
+  files.forEach(f => { f.muted = !soundOn; });
+  document.getElementById('soundBtn').textContent = soundOn ? '🔊 Music & Night: ON' : '🔇 Music & Night: OFF';
+}
+
+/* ---------- Flow ---------- */
+const $ = id => document.getElementById(id);
+function show(id) { ['step1', 'step2', 'step3', 'step4'].forEach(s => $(s).classList.toggle('hidden', s !== id)); }
+
+function openSky() {
+  startAudio();
+  $('soundBtn').classList.remove('hidden');
+  show('step2');
+  $('wishBox').focus();
+}
+
+const REPLIES = [
+  "I will carry this into the universe for you once again.",
+  "Your words are safe with the stars now.",
+  "You are not alone under this sky.",
+  "Whatever you carry, the night will hold it gently.",
+  "Thank you for trusting the sky. Rest well."
+];
+
+function textToStars(text, tx, ty) {
+  const off = document.createElement('canvas'); off.width = W; off.height = H;
+  const c = off.getContext('2d');
+  const size = Math.max(16, Math.min(30, W / 14));
+  c.font = 'italic ' + size + 'px "Cormorant Garamond", Georgia, serif';
+  c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  const maxW = W * 0.8, lines = []; let line = '';
+  for (const ch of text.replace(/\s+/g, ' ')) {
+    if (c.measureText(line + ch).width > maxW) { lines.push(line); line = ch; } else line += ch;
+  }
+  lines.push(line);
+  const shown = lines.slice(0, 5);
+  shown.forEach((l, i) => c.fillText(l, W / 2, H * 0.45 + (i - (shown.length - 1) / 2) * size * 1.5));
+  const d = c.getImageData(0, 0, W, H).data, pts = [];
+  for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) if (d[(y * W + x) * 4 + 3] > 128) pts.push([x, y]);
+  const keep = Math.min(1, 900 / Math.max(pts.length, 1));
+  textParticles = pts.filter(() => Math.random() < keep).map(([x, y]) => ({
+    x, y, tx: tx * W + (Math.random() - 0.5) * 6, ty: ty * H + (Math.random() - 0.5) * 6,
+    delay: Math.random() * 0.8, wob: (Math.random() - 0.5) * 120, ph: Math.random() * 6.28, size: Math.random() * 0.9 + 0.7
+  }));
+}
+
+function launchWish() {
+  const text = $('wishBox').value.trim();
+  if (!text) { $('wishBox').focus(); return; }
+  const tx = 0.12 + Math.random() * 0.76, ty = 0.08 + Math.random() * 0.4;
+  ['step1', 'step2', 'step3', 'step4'].forEach(s => $(s).classList.add('hidden'));
+  textToStars(text, tx, ty);
+  wishStart = performance.now();
+  wishDone = () => {
+    createBrightestStar(tx, ty);
+    document.querySelector('#step4 .poem-lead').textContent = REPLIES[Math.floor(Math.random() * REPLIES.length)];
+    show('step4');
+  };
+}
+
+function anotherWish() {
+  $('wishBox').value = '';
+  show('step2');
+  $('wishBox').focus();
+}
+</script>
+</body>
+</html>
